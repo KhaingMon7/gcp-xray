@@ -1,5 +1,3 @@
-import { exists } from "https://deno.land/std/fs/exists.ts";
-
 // ==================== CONFIGURATION ====================
 // Three different UUIDs for three different protocols
 const VLESS_UUID = '117a2ca0-8d8f-4611-a174-5d950dba8669';
@@ -23,8 +21,18 @@ interface Config {
 }
 
 // ==================== UUID HELPERS ====================
+// Check if file exists without using external std library
+async function fileExists(path: string): Promise<boolean> {
+  try {
+    await Deno.stat(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function getUUIDsFromConfig(): Promise<{ vless: string; vmess: string; trojan: string } | undefined> {
-  if (await exists(CONFIG_FILE)) {
+  if (await fileExists(CONFIG_FILE)) {
     try {
       const configText = await Deno.readTextFile(CONFIG_FILE);
       const config: Config = JSON.parse(configText);
@@ -73,6 +81,7 @@ console.log(`VLESS UUID: ${vlessID}`);
 console.log(`VMess UUID: ${vmessID}`);
 console.log(`Trojan UUID: ${trojanID}`);
 console.log(`Legacy UUID (still supported): ${OLD_UUID}`);
+console.log(`WebSocket Path: ${WS_PATH}`);
 
 function isUUIDValidForAuth(uuid: string): boolean {
   return uuid === vlessID || uuid === OLD_UUID;
@@ -154,7 +163,6 @@ Deno.serve(async (request: Request) => {
         const hostName = url.hostname;
         const port = url.port || (url.protocol === 'https:' ? 443 : 80);
         
-        // VMess JSON config format
         const vmessConfig = {
           v: "2",
           ps: `${credit}`,
@@ -228,26 +236,6 @@ Deno.serve(async (request: Request) => {
         };
         const vmessLink = `vmess://${btoa(JSON.stringify(vmessConfig))}`;
         const trojanLink = `trojan://${trojanID}@${hostName}:${port}?security=tls&sni=${hostName}&type=ws&host=${hostName}&path=${encodeURIComponent(WS_PATH)}%3Fed%3D2048#${credit}`;
-        
-        const allConfigs = `
-╔══════════════════════════════════════╗
-║     ZERO FREE VPN - ALL CONFIGS      ║
-║     Developer: မောင်သုည              ║
-╚══════════════════════════════════════╝
-
-🔷 VLESS Config:
-${vlessLink}
-
-🔶 VMess Config:
-${vmessLink}
-
-🔷 Trojan Config:
-${trojanLink}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📡 Support: @Zero_Free_Vpn
-🌐 Path: ${WS_PATH}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
         
         return new Response(generateAllConfigsHTML(vlessLink, vmessLink, trojanLink), {
           headers: { 'Content-Type': 'text/html; charset=utf-8' }
