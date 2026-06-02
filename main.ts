@@ -1,25 +1,26 @@
 import { exists } from "https://deno.land/std/fs/exists.ts";
 
 // ==================== CONFIGURATION ====================
-// Three different UUIDs for three different protocols
-const VLESS_UUID = '117a2ca0-8d8f-4611-a174-5d950dba8669';
-const VMESS_UUID = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
-const TROJAN_UUID = 'b2c3d4e5-f6a7-8901-bcde-f23456789012';
+// Three different UUIDs for three different VLESS configs
+const UUID1 = '117a2ca0-8d8f-4611-a174-5d950dba8669';
+const UUID2 = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
+const UUID3 = 'b2c3d4e5-f6a7-8901-bcde-f23456789012';
 const OLD_UUID = 'e5185305-1984-4084-81e0-f77271159c62'; // Legacy support
 
-const envVLESS = Deno.env.get('VLESS_UUID') || VLESS_UUID;
-const envVMess = Deno.env.get('VMESS_UUID') || VMESS_UUID;
-const envTrojan = Deno.env.get('TROJAN_UUID') || TROJAN_UUID;
+const envUUID1 = Deno.env.get('UUID1') || UUID1;
+const envUUID2 = Deno.env.get('UUID2') || UUID2;
+const envUUID3 = Deno.env.get('UUID3') || UUID3;
 const proxyIP = Deno.env.get('PROXYIP') || '';
 const credit = Deno.env.get('CREDIT') || 'ZeroFreeVPN-by-မောင်သုည';
 
 const CONFIG_FILE = 'config.json';
-const WS_PATH = '/@Zero_Free_Vpn';
+// IMPORTANT: Keep original path for compatibility
+const WS_PATH = '/';
 
 interface Config {
-  vless_uuid?: string;
-  vmess_uuid?: string;
-  trojan_uuid?: string;
+  uuid1?: string;
+  uuid2?: string;
+  uuid3?: string;
 }
 
 // ==================== UUID HELPERS ====================
@@ -32,15 +33,15 @@ async function fileExists(path: string): Promise<boolean> {
   }
 }
 
-async function getUUIDsFromConfig(): Promise<{ vless: string; vmess: string; trojan: string } | undefined> {
+async function getUUIDsFromConfig(): Promise<{ uuid1: string; uuid2: string; uuid3: string } | undefined> {
   if (await fileExists(CONFIG_FILE)) {
     try {
       const configText = await Deno.readTextFile(CONFIG_FILE);
       const config: Config = JSON.parse(configText);
-      if (config.vless_uuid && config.vmess_uuid && config.trojan_uuid &&
-          isValidUUID(config.vless_uuid) && isValidUUID(config.vmess_uuid) && isValidUUID(config.trojan_uuid)) {
+      if (config.uuid1 && config.uuid2 && config.uuid3 &&
+          isValidUUID(config.uuid1) && isValidUUID(config.uuid2) && isValidUUID(config.uuid3)) {
         console.log(`Loaded UUIDs from ${CONFIG_FILE}`);
-        return { vless: config.vless_uuid, vmess: config.vmess_uuid, trojan: config.trojan_uuid };
+        return { uuid1: config.uuid1, uuid2: config.uuid2, uuid3: config.uuid3 };
       }
     } catch (e) {
       console.warn(`Error reading ${CONFIG_FILE}:`, e.message);
@@ -49,9 +50,9 @@ async function getUUIDsFromConfig(): Promise<{ vless: string; vmess: string; tro
   return undefined;
 }
 
-async function saveUUIDsToConfig(vless: string, vmess: string, trojan: string): Promise<void> {
+async function saveUUIDsToConfig(uuid1: string, uuid2: string, uuid3: string): Promise<void> {
   try {
-    const config: Config = { vless_uuid: vless, vmess_uuid: vmess, trojan_uuid: trojan };
+    const config: Config = { uuid1: uuid1, uuid2: uuid2, uuid3: uuid3 };
     await Deno.writeTextFile(CONFIG_FILE, JSON.stringify(config, null, 2));
     console.log(`Saved UUIDs to ${CONFIG_FILE}`);
   } catch (e) {
@@ -59,44 +60,42 @@ async function saveUUIDsToConfig(vless: string, vmess: string, trojan: string): 
   }
 }
 
-let vlessID: string, vmessID: string, trojanID: string;
+let vlessID1: string, vlessID2: string, vlessID3: string;
 
 const configUUIDs = await getUUIDsFromConfig();
 if (configUUIDs) {
-  vlessID = configUUIDs.vless;
-  vmessID = configUUIDs.vmess;
-  trojanID = configUUIDs.trojan;
+  vlessID1 = configUUIDs.uuid1;
+  vlessID2 = configUUIDs.uuid2;
+  vlessID3 = configUUIDs.uuid3;
 } else {
-  vlessID = envVLESS;
-  vmessID = envVMess;
-  trojanID = envTrojan;
-  await saveUUIDsToConfig(vlessID, vmessID, trojanID);
+  vlessID1 = envUUID1;
+  vlessID2 = envUUID2;
+  vlessID3 = envUUID3;
+  await saveUUIDsToConfig(vlessID1, vlessID2, vlessID3);
 }
 
 // Validate all UUIDs
 console.log(`Validating UUIDs...`);
-console.log(`VLESS UUID: ${vlessID} - ${isValidUUID(vlessID) ? '✅ Valid' : '❌ Invalid'}`);
-console.log(`VMess UUID: ${vmessID} - ${isValidUUID(vmessID) ? '✅ Valid' : '❌ Invalid'}`);
-console.log(`Trojan UUID: ${trojanID} - ${isValidUUID(trojanID) ? '✅ Valid' : '❌ Invalid'}`);
+console.log(`VLESS UUID 1: ${vlessID1} - ${isValidUUID(vlessID1) ? '✅ Valid' : '❌ Invalid'}`);
+console.log(`VLESS UUID 2: ${vlessID2} - ${isValidUUID(vlessID2) ? '✅ Valid' : '❌ Invalid'}`);
+console.log(`VLESS UUID 3: ${vlessID3} - ${isValidUUID(vlessID3) ? '✅ Valid' : '❌ Invalid'}`);
 
-if (!isValidUUID(vlessID) || !isValidUUID(vmessID) || !isValidUUID(trojanID)) {
+if (!isValidUUID(vlessID1) || !isValidUUID(vlessID2) || !isValidUUID(vlessID3)) {
   console.error('UUID validation failed! Using fallback valid UUIDs...');
-  // Fallback to valid UUIDs if any is invalid
-  vlessID = isValidUUID(vlessID) ? vlessID : '117a2ca0-8d8f-4611-a174-5d950dba8669';
-  vmessID = isValidUUID(vmessID) ? vmessID : 'd6c4f3e2-b1a0-9876-5432-109876543210';
-  trojanID = isValidUUID(trojanID) ? trojanID : 'e7f5d4c3-b2a1-0987-6543-210987654321';
-  console.log(`Using fallback UUIDs - VLESS: ${vlessID}, VMess: ${vmessID}, Trojan: ${trojanID}`);
+  vlessID1 = isValidUUID(vlessID1) ? vlessID1 : '117a2ca0-8d8f-4611-a174-5d950dba8669';
+  vlessID2 = isValidUUID(vlessID2) ? vlessID2 : 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
+  vlessID3 = isValidUUID(vlessID3) ? vlessID3 : 'b2c3d4e5-f6a7-8901-bcde-f23456789012';
 }
 
 console.log(Deno.version);
-console.log(`Final VLESS UUID: ${vlessID}`);
-console.log(`Final VMess UUID: ${vmessID}`);
-console.log(`Final Trojan UUID: ${trojanID}`);
+console.log(`Final VLESS UUID 1: ${vlessID1}`);
+console.log(`Final VLESS UUID 2: ${vlessID2}`);
+console.log(`Final VLESS UUID 3: ${vlessID3}`);
 console.log(`Legacy UUID (still supported): ${OLD_UUID}`);
 console.log(`WebSocket Path: ${WS_PATH}`);
 
 function isUUIDValidForAuth(uuid: string): boolean {
-  return uuid === vlessID || uuid === OLD_UUID;
+  return uuid === vlessID1 || uuid === vlessID2 || uuid === vlessID3 || uuid === OLD_UUID;
 }
 
 // ==================== SERVER ====================
@@ -114,7 +113,7 @@ Deno.serve(async (request: Request) => {
     <title>Zero Free VPN - မောင်သုည</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #333; text-align: center; }
-        .container { background: white; padding: 40px 60px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); max-width: 700px; width: 90%; }
+        .container { background: white; padding: 40px 60px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); max-width: 800px; width: 90%; }
         h1 { color: #2c3e50; font-size: 2.5em; margin-bottom: 10px; }
         .badge { background: #764ba2; color: white; padding: 5px 15px; border-radius: 20px; display: inline-block; margin-bottom: 20px; }
         .btn-group { display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; margin: 30px 0; }
@@ -128,12 +127,9 @@ Deno.serve(async (request: Request) => {
     <div class="container">
         <h1>🚀 Zero Free VPN</h1>
         <div class="badge">Powered by မောင်သုည</div>
-        <p>High-speed, secure VPN proxy service. Choose your protocol below.</p>
+        <p>High-speed, secure VPN proxy service. Choose your VLESS config below.</p>
         <div class="btn-group">
-            <a href="/vless" class="btn">VLESS Config</a>
-            <a href="/vmess" class="btn">VMess Config</a>
-            <a href="/trojan" class="btn">Trojan Config</a>
-            <a href="/all" class="btn">📦 All Configs</a>
+            <a href="/vless" class="btn">🔷 VLESS Configs (3 UUIDs)</a>
         </div>
         <div class="footer">
             📡 Support: <a href="https://t.me/Zero_Free_Vpn" target="_blank">@Zero_Free_Vpn</a><br>
@@ -148,108 +144,61 @@ Deno.serve(async (request: Request) => {
       case '/vless': {
         const hostName = url.hostname;
         const port = url.port || (url.protocol === 'https:' ? 443 : 80);
-        const vlessLink = `vless://${vlessID}@${hostName}:${port}?encryption=none&security=tls&sni=${hostName}&fp=randomized&type=ws&host=${hostName}&path=${encodeURIComponent(WS_PATH)}%3Fed%3D2048#${credit}`;
         
-        const clashConfig = `proxies:
-  - name: "ZeroFree-${hostName}"
+        // Generate 3 different VLESS configs with 3 different UUIDs
+        const vlessLink1 = `vless://${vlessID1}@${hostName}:${port}?encryption=none&security=tls&sni=${hostName}&fp=randomized&type=ws&host=${hostName}&path=%2F%3Fed%3D2048#${credit}-1`;
+        const vlessLink2 = `vless://${vlessID2}@${hostName}:${port}?encryption=none&security=tls&sni=${hostName}&fp=randomized&type=ws&host=${hostName}&path=%2F%3Fed%3D2048#${credit}-2`;
+        const vlessLink3 = `vless://${vlessID3}@${hostName}:${port}?encryption=none&security=tls&sni=${hostName}&fp=randomized&type=ws&host=${hostName}&path=%2F%3Fed%3D2048#${credit}-3`;
+        
+        const clashConfig1 = `proxies:
+  - name: "ZeroFree-1-${hostName}"
     type: vless
     server: ${hostName}
     port: ${port}
-    uuid: ${vlessID}
+    uuid: ${vlessID1}
     network: ws
     tls: true
     udp: true
     sni: ${hostName}
     client-fingerprint: chrome
     ws-opts:
-      path: "${WS_PATH}/?ed=2048"
+      path: "/?ed=2048"
       headers:
         host: ${hostName}`;
-        
-        return new Response(generateConfigHTML('VLESS', vlessLink, clashConfig), {
-          headers: { 'Content-Type': 'text/html; charset=utf-8' }
-        });
-      }
-      
-      case '/vmess': {
-        const hostName = url.hostname;
-        const port = url.port || (url.protocol === 'https:' ? 443 : 80);
-        
-        const vmessConfig = {
-          v: "2",
-          ps: `${credit}`,
-          add: hostName,
-          port: port,
-          id: vmessID,
-          aid: "0",
-          net: "ws",
-          type: "none",
-          host: hostName,
-          path: `${WS_PATH}/?ed=2048`,
-          tls: "tls",
-          sni: hostName,
-          fp: "randomized"
-        };
-        const vmessLink = `vmess://${btoa(JSON.stringify(vmessConfig))}`;
-        
-        const clashConfig = `proxies:
-  - name: "ZeroFree-VMess-${hostName}"
-    type: vmess
+
+        const clashConfig2 = `proxies:
+  - name: "ZeroFree-2-${hostName}"
+    type: vless
     server: ${hostName}
     port: ${port}
-    uuid: ${vmessID}
-    alterId: 0
-    cipher: auto
+    uuid: ${vlessID2}
     network: ws
     tls: true
-    ws-path: "${WS_PATH}/?ed=2048"
-    ws-headers:
-      Host: ${hostName}`;
-        
-        return new Response(generateConfigHTML('VMess', vmessLink, clashConfig), {
-          headers: { 'Content-Type': 'text/html; charset=utf-8' }
-        });
-      }
-      
-      case '/trojan': {
-        const hostName = url.hostname;
-        const port = url.port || (url.protocol === 'https:' ? 443 : 80);
-        const trojanLink = `trojan://${trojanID}@${hostName}:${port}?security=tls&sni=${hostName}&type=ws&host=${hostName}&path=${encodeURIComponent(WS_PATH)}%3Fed%3D2048#${credit}`;
-        
-        const clashConfig = `proxies:
-  - name: "ZeroFree-Trojan-${hostName}"
-    type: trojan
-    server: ${hostName}
-    port: ${port}
-    password: ${trojanID}
-    network: ws
-    tls: true
+    udp: true
     sni: ${hostName}
+    client-fingerprint: chrome
     ws-opts:
-      path: "${WS_PATH}/?ed=2048"
+      path: "/?ed=2048"
+      headers:
+        host: ${hostName}`;
+
+        const clashConfig3 = `proxies:
+  - name: "ZeroFree-3-${hostName}"
+    type: vless
+    server: ${hostName}
+    port: ${port}
+    uuid: ${vlessID3}
+    network: ws
+    tls: true
+    udp: true
+    sni: ${hostName}
+    client-fingerprint: chrome
+    ws-opts:
+      path: "/?ed=2048"
       headers:
         host: ${hostName}`;
         
-        return new Response(generateConfigHTML('Trojan', trojanLink, clashConfig), {
-          headers: { 'Content-Type': 'text/html; charset=utf-8' }
-        });
-      }
-      
-      case '/all': {
-        const hostName = url.hostname;
-        const port = url.port || (url.protocol === 'https:' ? 443 : 80);
-        
-        const vlessLink = `vless://${vlessID}@${hostName}:${port}?encryption=none&security=tls&sni=${hostName}&fp=randomized&type=ws&host=${hostName}&path=${encodeURIComponent(WS_PATH)}%3Fed%3D2048#${credit}`;
-        
-        const vmessConfig = {
-          v: "2", ps: `${credit}`, add: hostName, port: port, id: vmessID,
-          aid: "0", net: "ws", type: "none", host: hostName,
-          path: `${WS_PATH}/?ed=2048`, tls: "tls", sni: hostName, fp: "randomized"
-        };
-        const vmessLink = `vmess://${btoa(JSON.stringify(vmessConfig))}`;
-        const trojanLink = `trojan://${trojanID}@${hostName}:${port}?security=tls&sni=${hostName}&type=ws&host=${hostName}&path=${encodeURIComponent(WS_PATH)}%3Fed%3D2048#${credit}`;
-        
-        return new Response(generateAllConfigsHTML(vlessLink, vmessLink, trojanLink), {
+        return new Response(generateConfigHTML(vlessLink1, vlessLink2, vlessLink3, clashConfig1, clashConfig2, clashConfig3), {
           headers: { 'Content-Type': 'text/html; charset=utf-8' }
         });
       }
@@ -258,25 +207,29 @@ Deno.serve(async (request: Request) => {
         return new Response('Not found', { status: 404 });
     }
   } else {
-    // Check if path matches our WS_PATH
+    // Check if path matches (original path is / or /?ed=2048)
     const url = new URL(request.url);
-    if (url.pathname !== WS_PATH) {
-      return new Response('Not found', { status: 404 });
+    // Accept both / and /?ed=2048 style paths
+    if (url.pathname !== '/' && url.pathname !== '/?ed=2048') {
+      // Also check for path with query
+      if (url.pathname !== '/') {
+        return new Response('Not found', { status: 404 });
+      }
     }
     return await vlessOverWSHandler(request);
   }
 });
 
-function generateConfigHTML(protocol: string, link: string, clashConfig: string): string {
+function generateConfigHTML(link1: string, link2: string, link3: string, clash1: string, clash2: string, clash3: string): string {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${protocol} Config - Zero Free VPN</title>
+    <title>VLESS Configs - Zero Free VPN</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; margin: 0; }
-        .container { max-width: 900px; margin: 0 auto; }
+        .container { max-width: 1000px; margin: 0 auto; }
         .card { background: white; border-radius: 12px; padding: 30px; margin-bottom: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
         h1 { color: #2c3e50; margin-top: 0; }
         .config-box { background: #1e1e2e; color: #50fa7b; padding: 20px; border-radius: 8px; font-family: monospace; word-break: break-all; white-space: pre-wrap; font-size: 14px; }
@@ -286,27 +239,51 @@ function generateConfigHTML(protocol: string, link: string, clashConfig: string)
         .back-btn:hover { background: #5a6268; }
         .footer { text-align: center; color: white; margin-top: 20px; }
         a { color: white; }
+        .config-card { border: 1px solid #e0e0e0; border-radius: 12px; padding: 20px; margin-bottom: 20px; background: #f9f9f9; }
+        .config-title { font-size: 1.3em; font-weight: bold; color: #667eea; margin-bottom: 15px; border-left: 4px solid #667eea; padding-left: 15px; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="card">
-            <h1>🔐 ${protocol} Configuration</h1>
+            <h1>🔐 VLESS Configurations (3 Different UUIDs)</h1>
             <p>Developer: <strong>မောင်သုည</strong> | Support: <strong>@Zero_Free_Vpn</strong></p>
-            <p>WebSocket Path: <code>${WS_PATH}</code></p>
+            <p>🌐 WebSocket Path: <code>/?ed=2048</code></p>
             
-            <h3>📱 Single-Link (For v2rayNG, NekoBox, etc.)</h3>
-            <div class="config-box" id="linkConfig">${link}</div>
-            <button class="btn" onclick="copyToClipboard('linkConfig')">📋 Copy Link</button>
+            <!-- Config 1 -->
+            <div class="config-card">
+                <div class="config-title">🔷 VLESS Config #1 - UUID: ${link1.split('@')[0].replace('vless://', '').substring(0, 36)}</div>
+                <div class="config-box" id="linkConfig1">${link1}</div>
+                <button class="btn" onclick="copyToClipboard('linkConfig1')">📋 Copy Link #1</button>
+                
+                <div class="config-box" id="clashConfig1" style="margin-top: 15px;">${clash1}</div>
+                <button class="btn" onclick="copyToClipboard('clashConfig1')">📋 Copy Clash Config #1</button>
+            </div>
             
-            <h3>⚙️ Clash Meta Configuration</h3>
-            <div class="config-box" id="clashConfig">${clashConfig}</div>
-            <button class="btn" onclick="copyToClipboard('clashConfig')">📋 Copy Config</button>
+            <!-- Config 2 -->
+            <div class="config-card">
+                <div class="config-title">🔷 VLESS Config #2 - UUID: ${link2.split('@')[0].replace('vless://', '').substring(0, 36)}</div>
+                <div class="config-box" id="linkConfig2">${link2}</div>
+                <button class="btn" onclick="copyToClipboard('linkConfig2')">📋 Copy Link #2</button>
+                
+                <div class="config-box" id="clashConfig2" style="margin-top: 15px;">${clash2}</div>
+                <button class="btn" onclick="copyToClipboard('clashConfig2')">📋 Copy Clash Config #2</button>
+            </div>
+            
+            <!-- Config 3 -->
+            <div class="config-card">
+                <div class="config-title">🔷 VLESS Config #3 - UUID: ${link3.split('@')[0].replace('vless://', '').substring(0, 36)}</div>
+                <div class="config-box" id="linkConfig3">${link3}</div>
+                <button class="btn" onclick="copyToClipboard('linkConfig3')">📋 Copy Link #3</button>
+                
+                <div class="config-box" id="clashConfig3" style="margin-top: 15px;">${clash3}</div>
+                <button class="btn" onclick="copyToClipboard('clashConfig3')">📋 Copy Clash Config #3</button>
+            </div>
             
             <div style="margin-top: 20px;">
                 <a href="/" class="btn back-btn">← Back to Home</a>
-                <a href="/all" class="btn">📦 Get All Configs</a>
             </div>
+            <p style="margin-top: 20px; color: #666; font-size: 0.9em;">💡 Note: All 3 UUIDs are supported simultaneously. Use any config that works best for you.</p>
         </div>
         <div class="footer">Zero Free VPN - Created by မောင်သုည | Telegram: @Zero_Free_Vpn</div>
     </div>
@@ -314,64 +291,6 @@ function generateConfigHTML(protocol: string, link: string, clashConfig: string)
         function copyToClipboard(elementId) {
             const text = document.getElementById(elementId).innerText;
             navigator.clipboard.writeText(text).then(() => alert('Copied!')).catch(() => alert('Manual copy please'));
-        }
-    </script>
-</body>
-</html>`;
-}
-
-function generateAllConfigsHTML(vless: string, vmess: string, trojan: string): string {
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>All Configs - Zero Free VPN</title>
-    <style>
-        body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; margin: 0; }
-        .container { max-width: 900px; margin: 0 auto; }
-        .card { background: white; border-radius: 12px; padding: 30px; margin-bottom: 20px; }
-        h1, h2 { color: #2c3e50; }
-        .config { background: #1e1e2e; color: #50fa7b; padding: 15px; border-radius: 8px; font-family: monospace; word-break: break-all; font-size: 13px; margin: 10px 0; }
-        .btn { background: #667eea; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; margin-right: 10px; }
-        .protocol { border-left: 4px solid #667eea; padding-left: 15px; margin: 25px 0; }
-        .footer { text-align: center; color: white; margin-top: 20px; }
-        a { color: white; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="card">
-            <h1>📦 All VPN Configurations</h1>
-            <p>👤 Developer: <strong>မောင်သုည</strong> | 📡 Support: <strong>@Zero_Free_Vpn</strong></p>
-            <p>🌐 WebSocket Path: <code>${WS_PATH}</code></p>
-            
-            <div class="protocol">
-                <h2>🔷 VLESS Config</h2>
-                <div class="config" id="vless">${vless}</div>
-                <button class="btn" onclick="copyToClipboard('vless')">Copy VLESS</button>
-            </div>
-            
-            <div class="protocol">
-                <h2>🔶 VMess Config</h2>
-                <div class="config" id="vmess">${vmess}</div>
-                <button class="btn" onclick="copyToClipboard('vmess')">Copy VMess</button>
-            </div>
-            
-            <div class="protocol">
-                <h2>🔷 Trojan Config</h2>
-                <div class="config" id="trojan">${trojan}</div>
-                <button class="btn" onclick="copyToClipboard('trojan')">Copy Trojan</button>
-            </div>
-            
-            <div style="margin-top: 20px;">
-                <a href="/" class="btn" style="background: #6c757d; text-decoration: none;">← Home</a>
-            </div>
-        </div>
-        <div class="footer">Zero Free VPN - မောင်သုည | @Zero_Free_Vpn</div>
-    </div>
-    <script>
-        function copyToClipboard(id) {
-            navigator.clipboard.writeText(document.getElementById(id).innerText).then(() => alert('Copied!'));
         }
     </script>
 </body>
@@ -414,7 +333,7 @@ async function vlessOverWSHandler(request: Request) {
             rawDataIndex,
             vlessVersion = new Uint8Array([0, 0]),
             isUDP,
-          } = processVlessHeader(chunk, vlessID);
+          } = processVlessHeader(chunk);
           address = addressRemote;
           portWithRandomLog = `${portRemote}--${Math.random()} ${isUDP ? 'udp ' : 'tcp '}`;
           if (hasError) {
@@ -516,7 +435,7 @@ function makeReadableWebSocketStream(webSocketServer: WebSocket, earlyDataHeader
   return stream;
 }
 
-function processVlessHeader(vlessBuffer: ArrayBuffer, userID: string) {
+function processVlessHeader(vlessBuffer: ArrayBuffer) {
   if (vlessBuffer.byteLength < 24) {
     return { hasError: true, message: 'Invalid data length' };
   }
@@ -526,13 +445,14 @@ function processVlessHeader(vlessBuffer: ArrayBuffer, userID: string) {
   
   const receivedUUID = stringify(new Uint8Array(vlessBuffer.slice(1, 17)));
   
-  if (receivedUUID === userID || receivedUUID === OLD_UUID) {
+  // Check against all 3 valid UUIDs and legacy
+  if (receivedUUID === vlessID1 || receivedUUID === vlessID2 || receivedUUID === vlessID3 || receivedUUID === OLD_UUID) {
     isValidUser = true;
-    console.log(`✅ Authenticated: ${receivedUUID}`);
+    console.log(`✅ Authenticated with UUID: ${receivedUUID}`);
   }
   
   if (!isValidUser) {
-    console.log(`❌ Invalid UUID: ${receivedUUID}`);
+    console.log(`❌ Invalid UUID attempt: ${receivedUUID}`);
     return { hasError: true, message: 'Invalid user' };
   }
 
