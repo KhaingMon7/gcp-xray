@@ -1,3 +1,5 @@
+import { exists } from "https://deno.land/std/fs/exists.ts";
+
 // ==================== CONFIGURATION ====================
 // Three different UUIDs for three different protocols
 const VLESS_UUID = '117a2ca0-8d8f-4611-a174-5d950dba8669';
@@ -21,7 +23,6 @@ interface Config {
 }
 
 // ==================== UUID HELPERS ====================
-// Check if file exists without using external std library
 async function fileExists(path: string): Promise<boolean> {
   try {
     await Deno.stat(path);
@@ -72,14 +73,25 @@ if (configUUIDs) {
   await saveUUIDsToConfig(vlessID, vmessID, trojanID);
 }
 
+// Validate all UUIDs
+console.log(`Validating UUIDs...`);
+console.log(`VLESS UUID: ${vlessID} - ${isValidUUID(vlessID) ? '✅ Valid' : '❌ Invalid'}`);
+console.log(`VMess UUID: ${vmessID} - ${isValidUUID(vmessID) ? '✅ Valid' : '❌ Invalid'}`);
+console.log(`Trojan UUID: ${trojanID} - ${isValidUUID(trojanID) ? '✅ Valid' : '❌ Invalid'}`);
+
 if (!isValidUUID(vlessID) || !isValidUUID(vmessID) || !isValidUUID(trojanID)) {
-  throw new Error('One or more UUIDs are invalid');
+  console.error('UUID validation failed! Using fallback valid UUIDs...');
+  // Fallback to valid UUIDs if any is invalid
+  vlessID = isValidUUID(vlessID) ? vlessID : '117a2ca0-8d8f-4611-a174-5d950dba8669';
+  vmessID = isValidUUID(vmessID) ? vmessID : 'd6c4f3e2-b1a0-9876-5432-109876543210';
+  trojanID = isValidUUID(trojanID) ? trojanID : 'e7f5d4c3-b2a1-0987-6543-210987654321';
+  console.log(`Using fallback UUIDs - VLESS: ${vlessID}, VMess: ${vmessID}, Trojan: ${trojanID}`);
 }
 
 console.log(Deno.version);
-console.log(`VLESS UUID: ${vlessID}`);
-console.log(`VMess UUID: ${vmessID}`);
-console.log(`Trojan UUID: ${trojanID}`);
+console.log(`Final VLESS UUID: ${vlessID}`);
+console.log(`Final VMess UUID: ${vmessID}`);
+console.log(`Final Trojan UUID: ${trojanID}`);
 console.log(`Legacy UUID (still supported): ${OLD_UUID}`);
 console.log(`WebSocket Path: ${WS_PATH}`);
 
