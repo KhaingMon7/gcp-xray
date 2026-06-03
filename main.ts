@@ -1,26 +1,32 @@
 import { exists } from "https://deno.land/std/fs/exists.ts";
 
 // ==================== CONFIGURATION ====================
-// Three different UUIDs for three different VLESS configs
+// 5 different UUIDs supported simultaneously
 const UUID1 = '117a2ca0-8d8f-4611-a174-5d950dba8669';
 const UUID2 = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
 const UUID3 = 'b2c3d4e5-f6a7-8901-bcde-f23456789012';
+const UUID4 = 'c3d4e5f6-a7b8-9012-cdef-345678901234';
+const UUID5 = 'd4e5f6a7-b8c9-0123-defg-456789012345';
 const OLD_UUID = 'e5185305-1984-4084-81e0-f77271159c62'; // Legacy support
 
 const envUUID1 = Deno.env.get('UUID1') || UUID1;
 const envUUID2 = Deno.env.get('UUID2') || UUID2;
 const envUUID3 = Deno.env.get('UUID3') || UUID3;
+const envUUID4 = Deno.env.get('UUID4') || UUID4;
+const envUUID5 = Deno.env.get('UUID5') || UUID5;
 const proxyIP = Deno.env.get('PROXYIP') || '';
 const credit = Deno.env.get('CREDIT') || 'ZeroFreeVPN-by-မောင်သုည';
 
 const CONFIG_FILE = 'config.json';
-// IMPORTANT: Keep original path for compatibility
+// Original working path
 const WS_PATH = '/';
 
 interface Config {
   uuid1?: string;
   uuid2?: string;
   uuid3?: string;
+  uuid4?: string;
+  uuid5?: string;
 }
 
 // ==================== UUID HELPERS ====================
@@ -33,15 +39,16 @@ async function fileExists(path: string): Promise<boolean> {
   }
 }
 
-async function getUUIDsFromConfig(): Promise<{ uuid1: string; uuid2: string; uuid3: string } | undefined> {
+async function getUUIDsFromConfig(): Promise<{ uuid1: string; uuid2: string; uuid3: string; uuid4: string; uuid5: string } | undefined> {
   if (await fileExists(CONFIG_FILE)) {
     try {
       const configText = await Deno.readTextFile(CONFIG_FILE);
       const config: Config = JSON.parse(configText);
-      if (config.uuid1 && config.uuid2 && config.uuid3 &&
-          isValidUUID(config.uuid1) && isValidUUID(config.uuid2) && isValidUUID(config.uuid3)) {
+      if (config.uuid1 && config.uuid2 && config.uuid3 && config.uuid4 && config.uuid5 &&
+          isValidUUID(config.uuid1) && isValidUUID(config.uuid2) && isValidUUID(config.uuid3) && 
+          isValidUUID(config.uuid4) && isValidUUID(config.uuid5)) {
         console.log(`Loaded UUIDs from ${CONFIG_FILE}`);
-        return { uuid1: config.uuid1, uuid2: config.uuid2, uuid3: config.uuid3 };
+        return { uuid1: config.uuid1, uuid2: config.uuid2, uuid3: config.uuid3, uuid4: config.uuid4, uuid5: config.uuid5 };
       }
     } catch (e) {
       console.warn(`Error reading ${CONFIG_FILE}:`, e.message);
@@ -50,9 +57,9 @@ async function getUUIDsFromConfig(): Promise<{ uuid1: string; uuid2: string; uui
   return undefined;
 }
 
-async function saveUUIDsToConfig(uuid1: string, uuid2: string, uuid3: string): Promise<void> {
+async function saveUUIDsToConfig(uuid1: string, uuid2: string, uuid3: string, uuid4: string, uuid5: string): Promise<void> {
   try {
-    const config: Config = { uuid1: uuid1, uuid2: uuid2, uuid3: uuid3 };
+    const config: Config = { uuid1, uuid2, uuid3, uuid4, uuid5 };
     await Deno.writeTextFile(CONFIG_FILE, JSON.stringify(config, null, 2));
     console.log(`Saved UUIDs to ${CONFIG_FILE}`);
   } catch (e) {
@@ -60,18 +67,22 @@ async function saveUUIDsToConfig(uuid1: string, uuid2: string, uuid3: string): P
   }
 }
 
-let vlessID1: string, vlessID2: string, vlessID3: string;
+let vlessID1: string, vlessID2: string, vlessID3: string, vlessID4: string, vlessID5: string;
 
 const configUUIDs = await getUUIDsFromConfig();
 if (configUUIDs) {
   vlessID1 = configUUIDs.uuid1;
   vlessID2 = configUUIDs.uuid2;
   vlessID3 = configUUIDs.uuid3;
+  vlessID4 = configUUIDs.uuid4;
+  vlessID5 = configUUIDs.uuid5;
 } else {
   vlessID1 = envUUID1;
   vlessID2 = envUUID2;
   vlessID3 = envUUID3;
-  await saveUUIDsToConfig(vlessID1, vlessID2, vlessID3);
+  vlessID4 = envUUID4;
+  vlessID5 = envUUID5;
+  await saveUUIDsToConfig(vlessID1, vlessID2, vlessID3, vlessID4, vlessID5);
 }
 
 // Validate all UUIDs
@@ -79,23 +90,16 @@ console.log(`Validating UUIDs...`);
 console.log(`VLESS UUID 1: ${vlessID1} - ${isValidUUID(vlessID1) ? '✅ Valid' : '❌ Invalid'}`);
 console.log(`VLESS UUID 2: ${vlessID2} - ${isValidUUID(vlessID2) ? '✅ Valid' : '❌ Invalid'}`);
 console.log(`VLESS UUID 3: ${vlessID3} - ${isValidUUID(vlessID3) ? '✅ Valid' : '❌ Invalid'}`);
-
-if (!isValidUUID(vlessID1) || !isValidUUID(vlessID2) || !isValidUUID(vlessID3)) {
-  console.error('UUID validation failed! Using fallback valid UUIDs...');
-  vlessID1 = isValidUUID(vlessID1) ? vlessID1 : '117a2ca0-8d8f-4611-a174-5d950dba8669';
-  vlessID2 = isValidUUID(vlessID2) ? vlessID2 : 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
-  vlessID3 = isValidUUID(vlessID3) ? vlessID3 : 'b2c3d4e5-f6a7-8901-bcde-f23456789012';
-}
+console.log(`VLESS UUID 4: ${vlessID4} - ${isValidUUID(vlessID4) ? '✅ Valid' : '❌ Invalid'}`);
+console.log(`VLESS UUID 5: ${vlessID5} - ${isValidUUID(vlessID5) ? '✅ Valid' : '❌ Invalid'}`);
 
 console.log(Deno.version);
-console.log(`Final VLESS UUID 1: ${vlessID1}`);
-console.log(`Final VLESS UUID 2: ${vlessID2}`);
-console.log(`Final VLESS UUID 3: ${vlessID3}`);
-console.log(`Legacy UUID (still supported): ${OLD_UUID}`);
 console.log(`WebSocket Path: ${WS_PATH}`);
 
+// Function to check if any UUID is valid for auth
 function isUUIDValidForAuth(uuid: string): boolean {
-  return uuid === vlessID1 || uuid === vlessID2 || uuid === vlessID3 || uuid === OLD_UUID;
+  return uuid === vlessID1 || uuid === vlessID2 || uuid === vlessID3 || 
+         uuid === vlessID4 || uuid === vlessID5 || uuid === OLD_UUID;
 }
 
 // ==================== SERVER ====================
@@ -110,7 +114,7 @@ Deno.serve(async (request: Request) => {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zero Free VPN - မောင်သုည</title>
+    <title>Deno GCP VLESS - Zero Free VPN</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #333; text-align: center; }
         .container { background: white; padding: 40px 60px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); max-width: 800px; width: 90%; }
@@ -125,11 +129,11 @@ Deno.serve(async (request: Request) => {
 </head>
 <body>
     <div class="container">
-        <h1>🚀 Zero Free VPN</h1>
+        <h1>🚀 Deno GCP VLESS 🚀</h1>
         <div class="badge">Powered by မောင်သုည</div>
-        <p>High-speed, secure VPN proxy service. Choose your VLESS config below.</p>
+        <p>High-speed, secure VPN proxy service with 5 simultaneous UUIDs.</p>
         <div class="btn-group">
-            <a href="/vless" class="btn">🔷 VLESS Configs (3 UUIDs)</a>
+            <a href="/vless" class="btn">🔷 VLESS Config (5 UUIDs)</a>
         </div>
         <div class="footer">
             📡 Support: <a href="https://t.me/Zero_Free_Vpn" target="_blank">@Zero_Free_Vpn</a><br>
@@ -145,13 +149,17 @@ Deno.serve(async (request: Request) => {
         const hostName = url.hostname;
         const port = url.port || (url.protocol === 'https:' ? 443 : 80);
         
-        // Generate 3 different VLESS configs with 3 different UUIDs
+        // Generate 5 different VLESS configs with 5 different UUIDs
         const vlessLink1 = `vless://${vlessID1}@${hostName}:${port}?encryption=none&security=tls&sni=${hostName}&fp=randomized&type=ws&host=${hostName}&path=%2F%3Fed%3D2048#${credit}-1`;
         const vlessLink2 = `vless://${vlessID2}@${hostName}:${port}?encryption=none&security=tls&sni=${hostName}&fp=randomized&type=ws&host=${hostName}&path=%2F%3Fed%3D2048#${credit}-2`;
         const vlessLink3 = `vless://${vlessID3}@${hostName}:${port}?encryption=none&security=tls&sni=${hostName}&fp=randomized&type=ws&host=${hostName}&path=%2F%3Fed%3D2048#${credit}-3`;
+        const vlessLink4 = `vless://${vlessID4}@${hostName}:${port}?encryption=none&security=tls&sni=${hostName}&fp=randomized&type=ws&host=${hostName}&path=%2F%3Fed%3D2048#${credit}-4`;
+        const vlessLink5 = `vless://${vlessID5}@${hostName}:${port}?encryption=none&security=tls&sni=${hostName}&fp=randomized&type=ws&host=${hostName}&path=%2F%3Fed%3D2048#${credit}-5`;
         
-        const clashConfig1 = `proxies:
-  - name: "ZeroFree-1-${hostName}"
+        // Clash config with all 5 UUIDs
+        const clashConfig = `proxies:
+  # ========== VLESS Config #1 ==========
+  - name: "VLESS-1-${hostName}"
     type: vless
     server: ${hostName}
     port: ${port}
@@ -164,10 +172,10 @@ Deno.serve(async (request: Request) => {
     ws-opts:
       path: "/?ed=2048"
       headers:
-        host: ${hostName}`;
+        host: ${hostName}
 
-        const clashConfig2 = `proxies:
-  - name: "ZeroFree-2-${hostName}"
+  # ========== VLESS Config #2 ==========
+  - name: "VLESS-2-${hostName}"
     type: vless
     server: ${hostName}
     port: ${port}
@@ -180,10 +188,10 @@ Deno.serve(async (request: Request) => {
     ws-opts:
       path: "/?ed=2048"
       headers:
-        host: ${hostName}`;
+        host: ${hostName}
 
-        const clashConfig3 = `proxies:
-  - name: "ZeroFree-3-${hostName}"
+  # ========== VLESS Config #3 ==========
+  - name: "VLESS-3-${hostName}"
     type: vless
     server: ${hostName}
     port: ${port}
@@ -196,9 +204,45 @@ Deno.serve(async (request: Request) => {
     ws-opts:
       path: "/?ed=2048"
       headers:
+        host: ${hostName}
+
+  # ========== VLESS Config #4 ==========
+  - name: "VLESS-4-${hostName}"
+    type: vless
+    server: ${hostName}
+    port: ${port}
+    uuid: ${vlessID4}
+    network: ws
+    tls: true
+    udp: true
+    sni: ${hostName}
+    client-fingerprint: chrome
+    ws-opts:
+      path: "/?ed=2048"
+      headers:
+        host: ${hostName}
+
+  # ========== VLESS Config #5 ==========
+  - name: "VLESS-5-${hostName}"
+    type: vless
+    server: ${hostName}
+    port: ${port}
+    uuid: ${vlessID5}
+    network: ws
+    tls: true
+    udp: true
+    sni: ${hostName}
+    client-fingerprint: chrome
+    ws-opts:
+      path: "/?ed=2048"
+      headers:
         host: ${hostName}`;
         
-        return new Response(generateConfigHTML(vlessLink1, vlessLink2, vlessLink3, clashConfig1, clashConfig2, clashConfig3), {
+        return new Response(generateConfigHTML(
+          vlessLink1, vlessLink2, vlessLink3, vlessLink4, vlessLink5,
+          clashConfig,
+          vlessID1, vlessID2, vlessID3, vlessID4, vlessID5
+        ), {
           headers: { 'Content-Type': 'text/html; charset=utf-8' }
         });
       }
@@ -209,24 +253,24 @@ Deno.serve(async (request: Request) => {
   } else {
     // Check if path matches (original path is / or /?ed=2048)
     const url = new URL(request.url);
-    // Accept both / and /?ed=2048 style paths
-    if (url.pathname !== '/' && url.pathname !== '/?ed=2048') {
-      // Also check for path with query
-      if (url.pathname !== '/') {
-        return new Response('Not found', { status: 404 });
-      }
+    if (url.pathname !== '/') {
+      return new Response('Not found', { status: 404 });
     }
     return await vlessOverWSHandler(request);
   }
 });
 
-function generateConfigHTML(link1: string, link2: string, link3: string, clash1: string, clash2: string, clash3: string): string {
+function generateConfigHTML(
+  link1: string, link2: string, link3: string, link4: string, link5: string,
+  clashConfig: string,
+  uuid1: string, uuid2: string, uuid3: string, uuid4: string, uuid5: string
+): string {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VLESS Configs - Zero Free VPN</title>
+    <title>VLESS Configs - Deno GCP VLESS</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; margin: 0; }
         .container { max-width: 1000px; margin: 0 auto; }
@@ -240,52 +284,66 @@ function generateConfigHTML(link1: string, link2: string, link3: string, clash1:
         .footer { text-align: center; color: white; margin-top: 20px; }
         a { color: white; }
         .config-card { border: 1px solid #e0e0e0; border-radius: 12px; padding: 20px; margin-bottom: 20px; background: #f9f9f9; }
-        .config-title { font-size: 1.3em; font-weight: bold; color: #667eea; margin-bottom: 15px; border-left: 4px solid #667eea; padding-left: 15px; }
+        .config-title { font-size: 1.2em; font-weight: bold; color: #667eea; margin-bottom: 15px; border-left: 4px solid #667eea; padding-left: 15px; }
+        .uuid-badge { font-family: monospace; background: #e0e0e0; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="card">
-            <h1>🔐 VLESS Configurations (3 Different UUIDs)</h1>
+            <h1>🚀 Deno GCP VLESS 🚀</h1>
             <p>Developer: <strong>မောင်သုည</strong> | Support: <strong>@Zero_Free_Vpn</strong></p>
             <p>🌐 WebSocket Path: <code>/?ed=2048</code></p>
+            <p>✅ All 5 UUIDs work simultaneously. Try each until one works for you.</p>
             
             <!-- Config 1 -->
             <div class="config-card">
-                <div class="config-title">🔷 VLESS Config #1 - UUID: ${link1.split('@')[0].replace('vless://', '').substring(0, 36)}</div>
+                <div class="config-title">🔷 VLESS Config #1 <span class="uuid-badge">UUID: ${uuid1.substring(0, 8)}...</span></div>
                 <div class="config-box" id="linkConfig1">${link1}</div>
                 <button class="btn" onclick="copyToClipboard('linkConfig1')">📋 Copy Link #1</button>
-                
-                <div class="config-box" id="clashConfig1" style="margin-top: 15px;">${clash1}</div>
-                <button class="btn" onclick="copyToClipboard('clashConfig1')">📋 Copy Clash Config #1</button>
             </div>
             
             <!-- Config 2 -->
             <div class="config-card">
-                <div class="config-title">🔷 VLESS Config #2 - UUID: ${link2.split('@')[0].replace('vless://', '').substring(0, 36)}</div>
+                <div class="config-title">🔷 VLESS Config #2 <span class="uuid-badge">UUID: ${uuid2.substring(0, 8)}...</span></div>
                 <div class="config-box" id="linkConfig2">${link2}</div>
                 <button class="btn" onclick="copyToClipboard('linkConfig2')">📋 Copy Link #2</button>
-                
-                <div class="config-box" id="clashConfig2" style="margin-top: 15px;">${clash2}</div>
-                <button class="btn" onclick="copyToClipboard('clashConfig2')">📋 Copy Clash Config #2</button>
             </div>
             
             <!-- Config 3 -->
             <div class="config-card">
-                <div class="config-title">🔷 VLESS Config #3 - UUID: ${link3.split('@')[0].replace('vless://', '').substring(0, 36)}</div>
+                <div class="config-title">🔷 VLESS Config #3 <span class="uuid-badge">UUID: ${uuid3.substring(0, 8)}...</span></div>
                 <div class="config-box" id="linkConfig3">${link3}</div>
                 <button class="btn" onclick="copyToClipboard('linkConfig3')">📋 Copy Link #3</button>
-                
-                <div class="config-box" id="clashConfig3" style="margin-top: 15px;">${clash3}</div>
-                <button class="btn" onclick="copyToClipboard('clashConfig3')">📋 Copy Clash Config #3</button>
+            </div>
+            
+            <!-- Config 4 -->
+            <div class="config-card">
+                <div class="config-title">🔷 VLESS Config #4 <span class="uuid-badge">UUID: ${uuid4.substring(0, 8)}...</span></div>
+                <div class="config-box" id="linkConfig4">${link4}</div>
+                <button class="btn" onclick="copyToClipboard('linkConfig4')">📋 Copy Link #4</button>
+            </div>
+            
+            <!-- Config 5 -->
+            <div class="config-card">
+                <div class="config-title">🔷 VLESS Config #5 <span class="uuid-badge">UUID: ${uuid5.substring(0, 8)}...</span></div>
+                <div class="config-box" id="linkConfig5">${link5}</div>
+                <button class="btn" onclick="copyToClipboard('linkConfig5')">📋 Copy Link #5</button>
+            </div>
+            
+            <!-- Full Clash Config with all UUIDs -->
+            <div class="config-card">
+                <div class="config-title">⚙️ Complete Clash Meta Config (All 5 UUIDs)</div>
+                <div class="config-box" id="clashConfigFull" style="max-height: 500px; overflow-y: auto;">${clashConfig}</div>
+                <button class="btn" onclick="copyToClipboard('clashConfigFull')">📋 Copy Full Clash Config</button>
             </div>
             
             <div style="margin-top: 20px;">
                 <a href="/" class="btn back-btn">← Back to Home</a>
             </div>
-            <p style="margin-top: 20px; color: #666; font-size: 0.9em;">💡 Note: All 3 UUIDs are supported simultaneously. Use any config that works best for you.</p>
+            <p style="margin-top: 20px; color: #666; font-size: 0.9em;">💡 Note: All 5 UUIDs are supported simultaneously. If one doesn't work, try another.</p>
         </div>
-        <div class="footer">Zero Free VPN - Created by မောင်သုည | Telegram: @Zero_Free_Vpn</div>
+        <div class="footer">Deno GCP VLESS - Created by မောင်သုည | Telegram: @Zero_Free_Vpn</div>
     </div>
     <script>
         function copyToClipboard(elementId) {
@@ -445,8 +503,9 @@ function processVlessHeader(vlessBuffer: ArrayBuffer) {
   
   const receivedUUID = stringify(new Uint8Array(vlessBuffer.slice(1, 17)));
   
-  // Check against all 3 valid UUIDs and legacy
-  if (receivedUUID === vlessID1 || receivedUUID === vlessID2 || receivedUUID === vlessID3 || receivedUUID === OLD_UUID) {
+  // Check against all 5 valid UUIDs and legacy
+  if (receivedUUID === vlessID1 || receivedUUID === vlessID2 || receivedUUID === vlessID3 || 
+      receivedUUID === vlessID4 || receivedUUID === vlessID5 || receivedUUID === OLD_UUID) {
     isValidUser = true;
     console.log(`✅ Authenticated with UUID: ${receivedUUID}`);
   }
